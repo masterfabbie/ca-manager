@@ -68,8 +68,8 @@ with engine.connect() as conn:
                     "not_after DATETIME,"
                     "cert_pem TEXT NOT NULL,"
                     "key_pem TEXT NOT NULL,"
-                    "alert_enabled BOOLEAN NOT NULL DEFAULT 0,"
                     "created_at DATETIME,"
+                    "alert_enabled BOOLEAN NOT NULL DEFAULT 0,"
                     "FOREIGN KEY (root_ca_id) REFERENCES root_cas(id))"
                 ))
                 conn.execute(text("INSERT INTO certificates_v2 SELECT * FROM certificates"))
