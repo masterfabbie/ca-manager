@@ -11,6 +11,10 @@ def _new_uuid() -> str:
     return str(uuid.uuid4())
 
 
+def _now_utc():
+    return datetime.now(timezone.utc)
+
+
 class RootCA(Base):
     __tablename__ = "root_cas"
 
@@ -66,6 +70,76 @@ class Certificate(Base):
         return bool(self.key_pem)
 
 
+# ── ACME ─────────────────────────────────────────────────────────────────────
+
+class AcmeAccount(Base):
+    __tablename__ = "acme_accounts"
+
+    id = Column(String(36), primary_key=True, default=_new_uuid)
+    status = Column(String(20), nullable=False, default="valid")
+    contact = Column(Text, nullable=False, default="[]")
+    jwk_thumbprint = Column(String(100), nullable=False, unique=True, index=True)
+    public_key_jwk = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=_now_utc)
+
+    orders = relationship("AcmeOrder", back_populates="account", cascade="all, delete-orphan")
+
+
+class AcmeOrder(Base):
+    __tablename__ = "acme_orders"
+
+    id = Column(String(36), primary_key=True, default=_new_uuid)
+    account_id = Column(String(36), ForeignKey("acme_accounts.id"), nullable=False, index=True)
+    status = Column(String(20), nullable=False, default="pending")
+    identifiers = Column(Text, nullable=False)
+    expires = Column(DateTime(timezone=True), nullable=False)
+    certificate_id = Column(String(36), ForeignKey("certificates.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=_now_utc)
+
+    account = relationship("AcmeAccount", back_populates="orders")
+    authorizations = relationship(
+        "AcmeAuthorization", back_populates="order", cascade="all, delete-orphan"
+    )
+
+
+class AcmeAuthorization(Base):
+    __tablename__ = "acme_authorizations"
+
+    id = Column(String(36), primary_key=True, default=_new_uuid)
+    order_id = Column(String(36), ForeignKey("acme_orders.id"), nullable=False, index=True)
+    identifier_type = Column(String(20), nullable=False)
+    identifier_value = Column(String(255), nullable=False)
+    status = Column(String(20), nullable=False, default="pending")
+    expires = Column(DateTime(timezone=True), nullable=False)
+
+    order = relationship("AcmeOrder", back_populates="authorizations")
+    challenges = relationship(
+        "AcmeChallenge", back_populates="authz", cascade="all, delete-orphan"
+    )
+
+
+class AcmeChallenge(Base):
+    __tablename__ = "acme_challenges"
+
+    id = Column(String(36), primary_key=True, default=_new_uuid)
+    authz_id = Column(String(36), ForeignKey("acme_authorizations.id"), nullable=False, index=True)
+    type = Column(String(20), nullable=False)
+    token = Column(String(100), nullable=False, unique=True)
+    status = Column(String(20), nullable=False, default="pending")
+    validated = Column(DateTime(timezone=True), nullable=True)
+    error = Column(Text, nullable=True)
+
+    authz = relationship("AcmeAuthorization", back_populates="challenges")
+
+
+class AcmeNonce(Base):
+    __tablename__ = "acme_nonces"
+
+    value = Column(String(100), primary_key=True)
+    created_at = Column(DateTime(timezone=True), nullable=False)
+    used = Column(Boolean, nullable=False, default=False)
+
+
 class Settings(Base):
     __tablename__ = "settings"
 
@@ -79,6 +153,10 @@ class Settings(Base):
     use_tls        = Column(Boolean, nullable=False, default=True)
     alert_days     = Column(Integer, nullable=False, default=30)
     alerts_enabled = Column(Boolean, nullable=False, default=False)
+    acme_enabled = Column(Boolean, nullable=False, default=False)
+    acme_ca_id = Column(String(36), ForeignKey("root_cas.id"), nullable=True)
+    acme_cert_days = Column(Integer, nullable=False, default=90)
+    acme_skip_challenges = Column(Boolean, nullable=False, default=False)
 
 
 class CsrRecord(Base):

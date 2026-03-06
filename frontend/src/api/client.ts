@@ -1,5 +1,6 @@
 import axios from "axios";
 import type {
+  AcmeAccount,
   AppSettings,
   CAImportPayload,
   Certificate,
@@ -64,6 +65,11 @@ export const SettingsAPI = {
   get: () => api.get<AppSettings>("/settings/").then((r) => r.data),
   update: (p: SettingsPayload) => api.put<AppSettings>("/settings/", p).then((r) => r.data),
   testEmail: () => api.post("/settings/test-email").then((r) => r.data),
+};
+
+export const AcmeAPI = {
+  accounts: () => api.get<AcmeAccount[]>("/acme/accounts").then((r) => r.data),
+  deleteAccount: (id: string) => api.delete(`/acme/accounts/${id}`),
 };
 
 export const CSRsAPI = {

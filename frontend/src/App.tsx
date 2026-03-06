@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { BrowserRouter, NavLink, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import AcmePage from "./pages/AcmePage";
 import CAsPage from "./pages/CAsPage";
 import CertificatesPage from "./pages/CertificatesPage";
 import CSRsPage from "./pages/CSRsPage";
@@ -40,6 +41,7 @@ function AppShell() {
           <NavLink to="/" end>Certificates</NavLink>
           <NavLink to="/cas">CAs</NavLink>
           <NavLink to="/csrs">CSRs</NavLink>
+          <NavLink to="/acme">ACME</NavLink>
           <NavLink to="/settings">Settings</NavLink>
         </div>
         <button
@@ -67,6 +69,10 @@ function AppShell() {
           <Route
             path="/csrs"
             element={<CSRsPage onSuccess={showSuccess} onError={showError} />}
+          />
+          <Route
+            path="/acme"
+            element={<AcmePage onSuccess={showSuccess} onError={showError} />}
           />
           <Route
             path="/settings"

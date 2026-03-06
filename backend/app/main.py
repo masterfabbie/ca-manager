@@ -11,6 +11,7 @@ from .database import Base, DATA_DIR, engine
 from .jobs import check_expiry_and_alert
 from .routers import cas, certificates, csrs
 from .routers import settings as settings_router
+from .routers.acme import acme_mgmt_router, acme_router
 
 # Ensure /data directory and DB are ready at startup
 DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -36,6 +37,10 @@ _migrations = [
         "alert_days INTEGER NOT NULL DEFAULT 30, "
         "alerts_enabled BOOLEAN NOT NULL DEFAULT 0)"
     ),
+    "ALTER TABLE settings ADD COLUMN acme_enabled BOOLEAN NOT NULL DEFAULT 0",
+    "ALTER TABLE settings ADD COLUMN acme_ca_id VARCHAR(36)",
+    "ALTER TABLE settings ADD COLUMN acme_cert_days INTEGER NOT NULL DEFAULT 90",
+    "ALTER TABLE settings ADD COLUMN acme_skip_challenges BOOLEAN NOT NULL DEFAULT 0",
 ]
 with engine.connect() as conn:
     for stmt in _migrations:
@@ -63,6 +68,8 @@ app.include_router(cas.router)
 app.include_router(certificates.router)
 app.include_router(csrs.router)
 app.include_router(settings_router.router)
+app.include_router(acme_router)
+app.include_router(acme_mgmt_router)
 
 STATIC_DIR = Path("/app/frontend/dist")
 

@@ -38,10 +38,23 @@ export interface AppSettings {
   use_tls: boolean;
   alert_days: number;
   alerts_enabled: boolean;
+  acme_enabled: boolean;
+  acme_ca_id: string | null;
+  acme_cert_days: number;
+  acme_skip_challenges: boolean;
 }
 
 export interface SettingsPayload extends AppSettings {
   smtp_password: string;
+}
+
+export interface AcmeAccount {
+  id: string;
+  status: string;
+  contact: string[];
+  jwk_thumbprint: string;
+  created_at: string;
+  order_count: number;
 }
 
 export interface CSRRecord {

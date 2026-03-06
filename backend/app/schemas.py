@@ -140,6 +140,10 @@ class SettingsRead(BaseModel):
     use_tls: bool
     alert_days: int
     alerts_enabled: bool
+    acme_enabled: bool
+    acme_ca_id: str | None
+    acme_cert_days: int
+    acme_skip_challenges: bool
 
     model_config = {"from_attributes": True}
 
@@ -154,6 +158,10 @@ class SettingsUpdate(BaseModel):
     use_tls: bool = True
     alert_days: int = Field(30, ge=1, le=365)
     alerts_enabled: bool = False
+    acme_enabled: bool = False
+    acme_ca_id: str | None = None
+    acme_cert_days: int = Field(90, ge=1, le=3650)
+    acme_skip_challenges: bool = False
 
 
 class AlertToggle(BaseModel):

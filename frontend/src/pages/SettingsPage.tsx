@@ -12,6 +12,11 @@ const defaultForm = (): SettingsPayload => ({
   use_tls: true,
   alert_days: 30,
   alerts_enabled: false,
+  // ACME fields — passed through transparently; edited on the ACME page
+  acme_enabled: false,
+  acme_ca_id: null,
+  acme_cert_days: 90,
+  acme_skip_challenges: false,
 });
 
 interface Props {
@@ -37,6 +42,10 @@ export default function SettingsPage({ onSuccess, onError }: Props) {
         use_tls: data.use_tls,
         alert_days: data.alert_days,
         alerts_enabled: data.alerts_enabled,
+        acme_enabled: data.acme_enabled,
+        acme_ca_id: data.acme_ca_id,
+        acme_cert_days: data.acme_cert_days,
+        acme_skip_challenges: data.acme_skip_challenges,
       });
     }
   }, [data]);
