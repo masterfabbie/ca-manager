@@ -38,6 +38,13 @@ acme_mgmt_router = APIRouter(prefix="/api/acme", tags=["ACME Management"])
 _NONCE_TTL_MINUTES = 60
 
 
+def _iso(dt: datetime) -> str:
+    """Format a datetime as RFC 3339. SQLite drops timezone info on retrieval, so we re-attach UTC."""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.isoformat()
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _acme_error(type_suffix: str, detail: str, status: int) -> JSONResponse:
@@ -117,7 +124,7 @@ def _cert_dl_url(base: str, cert_id: str) -> str:
 def _order_body(order: AcmeOrder, base: str) -> dict:
     body: dict = {
         "status": order.status,
-        "expires": order.expires.isoformat(),
+        "expires": _iso(order.expires),
         "identifiers": json.loads(order.identifiers),
         "authorizations": [_authz_url(base, a.id) for a in order.authorizations],
         "finalize": f"{_order_url(base, order.id)}/finalize",
@@ -134,7 +141,7 @@ def _authz_body(authz: AcmeAuthorization, base: str) -> dict:
             "url": _challenge_url(base, ch.id),
             "token": ch.token,
             "status": ch.status,
-            **({"validated": ch.validated.isoformat()} if ch.validated else {}),
+            **({"validated": _iso(ch.validated)} if ch.validated else {}),
             **({"error": json.loads(ch.error)} if ch.error else {}),
         }
         for ch in authz.challenges
@@ -142,7 +149,7 @@ def _authz_body(authz: AcmeAuthorization, base: str) -> dict:
     return {
         "identifier": {"type": authz.identifier_type, "value": authz.identifier_value},
         "status": authz.status,
-        "expires": authz.expires.isoformat(),
+        "expires": _iso(authz.expires),
         "challenges": challenges,
     }
 
@@ -769,7 +776,7 @@ def list_accounts(db: Session = Depends(get_db)):
             "status": a.status,
             "contact": json.loads(a.contact),
             "jwk_thumbprint": a.jwk_thumbprint,
-            "created_at": a.created_at.isoformat(),
+            "created_at": _iso(a.created_at),
             "order_count": len(a.orders),
         }
         for a in accounts
