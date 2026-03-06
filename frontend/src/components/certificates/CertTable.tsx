@@ -36,8 +36,8 @@ export default function CertTable({ onError }: Props) {
     }
   };
 
-  const caName = (id: string) =>
-    cas?.find((c) => c.id === id)?.name ?? id.slice(0, 8);
+  const caName = (id: string | null) =>
+    id ? (cas?.find((c) => c.id === id)?.name ?? id.slice(0, 8)) : "External";
 
   return (
     <div>

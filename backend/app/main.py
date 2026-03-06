@@ -50,6 +50,38 @@ with engine.connect() as conn:
         except Exception:
             pass  # Column/table already exists
 
+    # Make certificates.root_ca_id nullable (SQLite requires table recreation)
+    rows = conn.execute(text("PRAGMA table_info(certificates)")).fetchall()
+    for row in rows:
+        # row: (cid, name, type, notnull, dflt_value, pk)
+        if row[1] == "root_ca_id" and row[3] == 1:  # notnull=1 → need to migrate
+            try:
+                conn.execute(text(
+                    "CREATE TABLE certificates_v2 ("
+                    "id VARCHAR(36) NOT NULL PRIMARY KEY,"
+                    "root_ca_id VARCHAR(36),"
+                    "common_name VARCHAR(255) NOT NULL,"
+                    "sans TEXT NOT NULL,"
+                    "key_size INTEGER NOT NULL,"
+                    "not_before DATETIME,"
+                    "not_after DATETIME,"
+                    "cert_pem TEXT NOT NULL,"
+                    "key_pem TEXT NOT NULL,"
+                    "alert_enabled BOOLEAN NOT NULL DEFAULT 0,"
+                    "created_at DATETIME,"
+                    "FOREIGN KEY (root_ca_id) REFERENCES root_cas(id))"
+                ))
+                conn.execute(text("INSERT INTO certificates_v2 SELECT * FROM certificates"))
+                conn.execute(text("DROP TABLE certificates"))
+                conn.execute(text("ALTER TABLE certificates_v2 RENAME TO certificates"))
+                conn.execute(text(
+                    "CREATE INDEX IF NOT EXISTS ix_certificates_root_ca_id ON certificates (root_ca_id)"
+                ))
+                conn.commit()
+            except Exception:
+                pass
+            break
+
 
 scheduler = AsyncIOScheduler()
 

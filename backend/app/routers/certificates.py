@@ -100,9 +100,10 @@ def import_cert(
     db: Session = Depends(get_db),
 ):
     """Import an existing leaf certificate (and optionally its private key)."""
-    ca = db.query(RootCA).filter(RootCA.id == payload.root_ca_id).first()
-    if not ca:
-        raise HTTPException(status_code=404, detail="CA not found")
+    if payload.root_ca_id:
+        ca = db.query(RootCA).filter(RootCA.id == payload.root_ca_id).first()
+        if not ca:
+            raise HTTPException(status_code=404, detail="CA not found")
 
     try:
         leaf_cert = x509.load_pem_x509_certificate(payload.cert_pem.encode())
@@ -169,8 +170,10 @@ def download_p12(
         raise HTTPException(status_code=404, detail="Certificate not found")
     _require_key(cert)
 
-    ca, _ = _load_ca(cert.root_ca_id, db)
-    chain = _build_ca_chain(ca, db)
+    chain = []
+    if cert.root_ca_id:
+        ca, _ = _load_ca(cert.root_ca_id, db)
+        chain = _build_ca_chain(ca, db)
     leaf_cert = x509.load_pem_x509_certificate(cert.cert_pem.encode())
     leaf_key = serialization.load_pem_private_key(cert.key_pem.encode(), password=None)
 
@@ -193,8 +196,10 @@ def download_pem_bundle(
         raise HTTPException(status_code=404, detail="Certificate not found")
     _require_key(cert)
 
-    ca, _ = _load_ca(cert.root_ca_id, db)
-    chain = _build_ca_chain(ca, db)
+    chain = []
+    if cert.root_ca_id:
+        ca, _ = _load_ca(cert.root_ca_id, db)
+        chain = _build_ca_chain(ca, db)
     leaf_cert = x509.load_pem_x509_certificate(cert.cert_pem.encode())
     leaf_key = serialization.load_pem_private_key(cert.key_pem.encode(), password=None)
 
@@ -247,7 +252,9 @@ def bulk_download(
 
     chain_cache: dict[str, list] = {}
 
-    def get_chain(root_ca_id: str):
+    def get_chain(root_ca_id: Optional[str]):
+        if not root_ca_id:
+            return []
         if root_ca_id not in chain_cache:
             ca = db.query(RootCA).filter(RootCA.id == root_ca_id).first()
             chain_cache[root_ca_id] = _build_ca_chain(ca, db) if ca else []

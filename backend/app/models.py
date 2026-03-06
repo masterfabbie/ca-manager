@@ -48,7 +48,7 @@ class Certificate(Base):
     __tablename__ = "certificates"
 
     id = Column(String(36), primary_key=True, default=_new_uuid)
-    root_ca_id = Column(String(36), ForeignKey("root_cas.id"), nullable=False, index=True)
+    root_ca_id = Column(String(36), ForeignKey("root_cas.id"), nullable=True, index=True)
     common_name = Column(String(255), nullable=False)
     sans = Column(Text, nullable=False, default="[]")
     key_size = Column(Integer, nullable=False)

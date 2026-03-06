@@ -12,28 +12,21 @@ interface Props {
 export default function ImportCertForm({ onSuccess, onError }: Props) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<CertImportPayload>({
-    root_ca_id: "",
+    root_ca_id: null,
     cert_pem: "",
     key_pem: "",
   });
   const { mutate, isPending } = useImportCert();
   const { data: cas } = useCAs();
 
-  const firstCA = cas?.[0];
-
   const handle = (e: React.FormEvent) => {
     e.preventDefault();
-    const caId = form.root_ca_id || firstCA?.id || "";
-    if (!caId) {
-      onError("Select a CA first");
-      return;
-    }
     mutate(
-      { ...form, root_ca_id: caId },
+      form,
       {
         onSuccess: (cert) => {
           onSuccess(`Certificate "${cert.common_name}" imported`);
-          setForm({ root_ca_id: "", cert_pem: "", key_pem: "" });
+          setForm({ root_ca_id: null, cert_pem: "", key_pem: "" });
           setOpen(false);
         },
         onError: (err: unknown) => {
@@ -54,12 +47,7 @@ export default function ImportCertForm({ onSuccess, onError }: Props) {
 
   return (
     <>
-      <button
-        className="btn btn-secondary"
-        onClick={() => setOpen(true)}
-        disabled={!cas?.length}
-        title={!cas?.length ? "Create or import a CA first" : undefined}
-      >
+      <button className="btn btn-secondary" onClick={() => setOpen(true)}>
         ↑ Import Cert
       </button>
       {open && (
@@ -70,12 +58,12 @@ export default function ImportCertForm({ onSuccess, onError }: Props) {
               (P12 and PEM bundle require the key).
             </p>
             <label>
-              Signing CA
+              Signing CA <span className="muted">(optional)</span>
               <select
-                value={form.root_ca_id || firstCA?.id || ""}
-                onChange={(e) => setForm({ ...form, root_ca_id: e.target.value })}
-                required
+                value={form.root_ca_id ?? ""}
+                onChange={(e) => setForm({ ...form, root_ca_id: e.target.value || null })}
               >
+                <option value="">External / Public CA (Let's Encrypt, etc.)</option>
                 {cas?.map((ca) => (
                   <option key={ca.id} value={ca.id}>{ca.name}</option>
                 ))}

@@ -18,7 +18,7 @@ export interface SANEntry {
 
 export interface Certificate {
   id: string;
-  root_ca_id: string;
+  root_ca_id: string | null;
   common_name: string;
   sans: SANEntry[];
   key_size: number;
@@ -99,7 +99,7 @@ export interface CreateCertPayload {
 }
 
 export interface CertImportPayload {
-  root_ca_id: string;
+  root_ca_id: string | null;
   cert_pem: string;
   key_pem: string;
 }

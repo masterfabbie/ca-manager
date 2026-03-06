@@ -63,14 +63,14 @@ class CertificateCreate(BaseModel):
 
 class CertImport(BaseModel):
     """Import an existing leaf certificate."""
-    root_ca_id: str
+    root_ca_id: str | None = None   # None = externally signed (Let's Encrypt, etc.)
     cert_pem: str
     key_pem: str = ""   # optional — without it only cert-only download works
 
 
 class CertificateRead(BaseModel):
     id: str
-    root_ca_id: str
+    root_ca_id: str | None
     common_name: str
     sans: list[SANEntry]
     key_size: int
