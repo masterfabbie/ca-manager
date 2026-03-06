@@ -56,6 +56,7 @@ with engine.connect() as conn:
         # row: (cid, name, type, notnull, dflt_value, pk)
         if row[1] == "root_ca_id" and row[3] == 1:  # notnull=1 → need to migrate
             try:
+                conn.execute(text("DROP TABLE IF EXISTS certificates_v2"))
                 conn.execute(text(
                     "CREATE TABLE certificates_v2 ("
                     "id VARCHAR(36) NOT NULL PRIMARY KEY,"
