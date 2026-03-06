@@ -1,0 +1,36 @@
+services:
+  ca-manager:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ca-manager:latest
+    container_name: ca-manager
+    restart: unless-stopped
+    ports:
+      - "8080:8000"
+    volumes:
+      - ca_data:/data
+    environment:
+      # SQLite requires a single worker
+      - WEB_CONCURRENCY=1
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/cas/')",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  ca_data:
+    driver: local
+    # To use a host directory instead of a named volume, replace with:
+    # driver_opts:
+    #   type: none
+    #   o: bind
+    #   device: /opt/ca-manager/data

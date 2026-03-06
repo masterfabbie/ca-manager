@@ -1,0 +1,74 @@
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
+
+from .database import Base, DATA_DIR, engine
+from .jobs import check_expiry_and_alert
+from .routers import cas, certificates, csrs
+from .routers import settings as settings_router
+
+# Ensure /data directory and DB are ready at startup
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+(DATA_DIR / "ca_keys").mkdir(parents=True, exist_ok=True)
+Base.metadata.create_all(bind=engine)
+
+# Incremental schema migrations for existing DBs
+_migrations = [
+    "ALTER TABLE root_cas ADD COLUMN parent_ca_id VARCHAR(36) REFERENCES root_cas(id)",
+    "ALTER TABLE root_cas ADD COLUMN is_intermediate BOOLEAN NOT NULL DEFAULT 0",
+    "ALTER TABLE csr_records ADD COLUMN key_pem TEXT",
+    "ALTER TABLE certificates ADD COLUMN alert_enabled BOOLEAN NOT NULL DEFAULT 0",
+    (
+        "CREATE TABLE IF NOT EXISTS settings ("
+        "id INTEGER PRIMARY KEY, "
+        "smtp_host VARCHAR(255) NOT NULL DEFAULT '', "
+        "smtp_port INTEGER NOT NULL DEFAULT 587, "
+        "smtp_username VARCHAR(255) NOT NULL DEFAULT '', "
+        "smtp_password TEXT NOT NULL DEFAULT '', "
+        "smtp_from VARCHAR(255) NOT NULL DEFAULT '', "
+        "alert_to VARCHAR(255) NOT NULL DEFAULT '', "
+        "use_tls BOOLEAN NOT NULL DEFAULT 1, "
+        "alert_days INTEGER NOT NULL DEFAULT 30, "
+        "alerts_enabled BOOLEAN NOT NULL DEFAULT 0)"
+    ),
+]
+with engine.connect() as conn:
+    for stmt in _migrations:
+        try:
+            conn.execute(text(stmt))
+            conn.commit()
+        except Exception:
+            pass  # Column/table already exists
+
+
+scheduler = AsyncIOScheduler()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    scheduler.add_job(check_expiry_and_alert, "interval", hours=24, id="expiry_check")
+    scheduler.start()
+    yield
+    scheduler.shutdown()
+
+
+app = FastAPI(title="CA Manager", docs_url="/api/docs", redoc_url="/api/redoc", lifespan=lifespan)
+
+app.include_router(cas.router)
+app.include_router(certificates.router)
+app.include_router(csrs.router)
+app.include_router(settings_router.router)
+
+STATIC_DIR = Path("/app/frontend/dist")
+
+if STATIC_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def spa_fallback(full_path: str):
+        return FileResponse(STATIC_DIR / "index.html")
