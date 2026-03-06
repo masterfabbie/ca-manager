@@ -680,6 +680,12 @@ async def respond_to_challenge(
     if not challenge:
         return _acme_error("malformed", "Challenge not found", 404)
 
+    # Fetch authz now — needed for the "up" Link header required by RFC 8555 §7.5
+    authz = db.query(AcmeAuthorization).filter(AcmeAuthorization.id == challenge.authz_id).first()
+    if not authz:
+        return _acme_error("malformed", "Authorization not found", 404)
+    authz_link = f'<{_authz_url(base, authz.id)}>;rel="up"'
+
     if challenge.status != "pending":
         nonce = _issue_nonce(db)
         return JSONResponse(
@@ -689,13 +695,11 @@ async def respond_to_challenge(
                 "token": challenge.token,
                 "status": challenge.status,
             },
-            headers={"Replay-Nonce": nonce},
+            headers={"Replay-Nonce": nonce, "Link": authz_link},
         )
 
     account_jwk = json.loads(account.public_key_jwk)
     key_auth = f"{challenge.token}.{jwk_thumbprint(account_jwk)}"
-
-    authz = db.query(AcmeAuthorization).filter(AcmeAuthorization.id == challenge.authz_id).first()
     domain = authz.identifier_value
 
     background_tasks.add_task(
@@ -715,7 +719,7 @@ async def respond_to_challenge(
             "token": challenge.token,
             "status": "processing",
         },
-        headers={"Replay-Nonce": nonce},
+        headers={"Replay-Nonce": nonce, "Link": authz_link},
     )
 
 
